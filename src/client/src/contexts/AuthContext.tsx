@@ -136,6 +136,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Load session from localStorage on mount
   useEffect(() => {
     const loadSession = () => {
+      // Check for demo mode
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname === "/demo"
+      ) {
+        const mockUser = {
+          id: "demo-user",
+          email: "demo@example.com",
+          first_name: "Demo",
+          last_name: "User",
+          role: "admin" as any,
+        };
+        const mockTenant = {
+          id: "demo-tenant",
+          name: "Demo Tenant",
+          subdomain: "demo",
+        };
+        dispatch({
+          type: "LOGIN_SUCCESS",
+          payload: {
+            user: mockUser,
+            tenant: mockTenant,
+            accessToken: "demo-token",
+            refreshToken: "demo-refresh",
+          },
+        });
+        return;
+      }
+
       try {
         const accessToken = localStorage.getItem("accessToken");
         const refreshToken = localStorage.getItem("refreshToken");
@@ -344,6 +373,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout function
   const logout = async (): Promise<void> => {
+    // Check if demo mode
+    if (typeof window !== "undefined" && window.location.pathname === "/demo") {
+      // For demo, just redirect to home or do nothing
+      window.location.href = "/";
+      return;
+    }
+
     try {
       if (state.refreshToken && state.accessToken && state.currentTenant) {
         await AuthService.logout(

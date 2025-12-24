@@ -1,4 +1,4 @@
-use axum::{middleware as axum_middleware, routing::get, Router};
+use axum::{middleware as axum_middleware, response::Html, routing::get, Router};
 use dotenv::dotenv;
 use std::{env, path::Path};
 use tower::ServiceBuilder;
@@ -28,6 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build the application with routes and middleware
     let mut app = Router::new()
         .route("/health", get(health_check))
+        .route("/demo", get(demo))
         // API routes
         .nest("/api/v1/auth", auth::routes())
         // Protected API routes (require auth and tenant isolation)
@@ -130,6 +131,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn health_check() -> &'static str {
     "OK"
+}
+
+async fn demo() -> Result<Html<String>, axum::http::StatusCode> {
+    let static_files_dir = env::var("STATIC_FILES_DIR").unwrap_or_else(|_| "./static".to_string());
+    let path = format!("{}/index.html", static_files_dir);
+    match std::fs::read_to_string(&path) {
+        Ok(content) => Ok(Html(content)),
+        Err(_) => Err(axum::http::StatusCode::NOT_FOUND),
+    }
 }
 
 // Fallback handler for when running without frontend static files

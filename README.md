@@ -80,6 +80,7 @@ A modern, multi-tenant Enterprise Management Suite for hardware manufacturing. B
 |---------|-------------|---------|
 | `python run.py setup` | Setup development environment | |
 | `python run.py dev` | Start development servers | `--frontend-only`, `--backend-only` |
+| `python run.py demo` | Start demo with dashboard | `--port` |
 | `python run.py build` | Build frontend and backend | `--frontend-only`, `--backend-only`, `--release` |
 | `python run.py test` | Run all tests | `--frontend-only`, `--backend-only` |
 | `python run.py lint` | Lint code | `--frontend-only`, `--backend-only`, `--fix` |

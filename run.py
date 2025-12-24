@@ -10,6 +10,8 @@ import os
 import sys
 import subprocess
 import shutil
+import webbrowser
+import time
 from pathlib import Path
 from typing import Optional, List
 import click
@@ -499,6 +501,68 @@ def setup():
 
     print_success("Development environment setup completed!")
     print_warning("Please configure config.env before running the application")
+
+
+@cli.command()
+@click.option("--port", default="3001", help="Frontend port to use")
+def demo(port):
+    """Start development servers and open demo in browser."""
+    print_header("Starting EMS Demo")
+
+    processes = []
+
+    try:
+        # Start backend
+        print_header("Starting Backend Development Server")
+        if SERVER_DIR.exists():
+            cmd = ["cargo", "run", "--bin", "ems-server-rs"]
+            proc = subprocess.Popen(cmd, cwd=SERVER_DIR)
+            processes.append(("Backend", proc))
+            print_success("Backend development server started")
+        else:
+            print_error("Backend directory not found")
+            sys.exit(1)
+
+        # Start frontend
+        print_header("Starting Frontend Development Server")
+        if CLIENT_DIR.exists():
+            # Install dependencies if needed
+            if not (CLIENT_DIR / "node_modules").exists():
+                print_warning("Installing frontend dependencies...")
+                run_command(["npm", "ci"], cwd=CLIENT_DIR)
+
+            # Start frontend on specified port
+            env = os.environ.copy()
+            env["PORT"] = port
+            cmd = ["npm", "run", "start"]
+            proc = subprocess.Popen(cmd, cwd=CLIENT_DIR, env=env)
+            processes.append(("Frontend", proc))
+            print_success(f"Frontend development server started on port {port}")
+        else:
+            print_error("Frontend directory not found")
+            sys.exit(1)
+
+        # Wait a bit for servers to start
+        print_warning("Waiting for servers to start...")
+        time.sleep(5)
+
+        # Open demo URL in browser
+        demo_url = f"http://localhost:{port}/demo"
+        print_success(f"Opening demo at {demo_url}")
+        webbrowser.open(demo_url)
+
+        print_success("Demo environment started successfully!")
+        print_warning("Press Ctrl+C to stop all servers")
+
+        # Wait for all processes
+        for name, proc in processes:
+            proc.wait()
+
+    except KeyboardInterrupt:
+        print_warning("Shutting down demo servers...")
+        for name, proc in processes:
+            proc.terminate()
+            print_success(f"{name} server stopped")
 
 
 @cli.command()
