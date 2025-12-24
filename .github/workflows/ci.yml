@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Test Frontend and Backend
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Configure git for submodules
+      run: |
+        git config --global url."https://${{ secrets.PAT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+        git submodule update --init --recursive
+    
+    # Set up Node.js for frontend testing
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+        cache: 'npm'
+        cache-dependency-path: 'src/client/package-lock.json'
+    
+    # Set up Rust for backend testing
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        profile: minimal
+        override: true
+        components: rustfmt, clippy
+    
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          src/server/target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('src/server/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    # Install system dependencies for Rust backend
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev libpq-dev
+    
+    # Install dependencies
+    - name: Install frontend dependencies
+      run: |
+        cd src/client
+        npm ci
+    
+    - name: Install backend dependencies
+      run: |
+        cd src/server
+        cargo fetch
+    
+    # Frontend tasks - lint and build if needed
+    - name: Lint frontend code
+      run: |
+        cd src/client
+        if grep -q "\"lint\":" package.json; then
+          npm run lint
+        else
+          echo "No lint script found in package.json, skipping"
+        fi
+      continue-on-error: true
+    
+    - name: Build frontend
+      id: frontend-build
+      run: |
+        echo "Building frontend..."
+        cd src/client
+        npm run build
+        echo "Frontend build completed successfully"
+        echo "build_required=true" >> $GITHUB_OUTPUT
+      continue-on-error: false
+    
+    # Backend tasks - format, lint and test
+    - name: Format backend code
+      run: |
+        cd src/server
+        cargo fmt -- --check
+      continue-on-error: true
+    
+    - name: Lint backend code
+      run: |
+        cd src/server
+        cargo check
+    
+    - name: Build backend
+      run: |
+        cd src/server
+        cargo build --verbose
+    
+    - name: Test backend
+      run: |
+        cd src/server
+        cargo test --verbose
+    
+    # Summary
+    - name: Job summary
+      run: |
+        echo "## CI Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Backend tests completed" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ steps.frontend-build.outputs.build_required }}" == "true" ]]; then
+          echo "- Frontend build completed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- Frontend build skipped (no changes)" >> $GITHUB_STEP_SUMMARY
+        fi 
+        
+    # Detailed Report
+    - name: Generate detailed report
+      run: |
+        echo "## Detailed Build Report" >> $GITHUB_STEP_SUMMARY
+        echo "### Environment" >> $GITHUB_STEP_SUMMARY
+        echo "- Node version: $(node -v)" >> $GITHUB_STEP_SUMMARY
+        echo "- Rust version: $(rustc --version)" >> $GITHUB_STEP_SUMMARY
+        echo "- Cargo version: $(cargo --version)" >> $GITHUB_STEP_SUMMARY
+        echo "- Runner: ${{ runner.os }}" >> $GITHUB_STEP_SUMMARY
+        echo "### Build Stats" >> $GITHUB_STEP_SUMMARY
+        echo "- Workflow triggered by: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Commit SHA: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Configure git for submodules
+      run: |
+        git config --global url."https://${{ secrets.PAT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+        git submodule update --init --recursive
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: ems:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test Docker image
+      run: |
+        echo "## Docker Build Test" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Docker image built successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- 🐳 Image size: $(docker images ems:test --format 'table {{.Size}}' | tail -n +2)" >> $GITHUB_STEP_SUMMARY 

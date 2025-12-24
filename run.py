@@ -1,0 +1,542 @@
+#!/usr/bin/env python3
+"""
+Enterprise Management Suite (EMS) - Unified Development Tool
+
+A unified script to manage and orchestrate client and server workflows.
+Supports build, test, lint, format, clean operations for both frontend and backend.
+"""
+
+import os
+import sys
+import subprocess
+import shutil
+from pathlib import Path
+from typing import Optional, List
+import click
+
+# Project paths
+PROJECT_ROOT = Path(__file__).parent
+CLIENT_DIR = PROJECT_ROOT / "src" / "client"
+SERVER_DIR = PROJECT_ROOT / "src" / "server"
+CONFIG_FILE = PROJECT_ROOT / "config.env"
+
+# Required environment variables for development
+REQUIRED_ENV_VARS = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_ANON_KEY", "JWT_SECRET"]
+
+
+# Color codes for output
+class Colors:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+
+
+def print_header(text: str):
+    """Print a colored header."""
+    click.echo(f"{Colors.HEADER}{Colors.BOLD}=== {text} ==={Colors.ENDC}")
+
+
+def print_success(text: str):
+    """Print a success message."""
+    click.echo(f"{Colors.OKGREEN}✓ {text}{Colors.ENDC}")
+
+
+def print_warning(text: str):
+    """Print a warning message."""
+    click.echo(f"{Colors.WARNING}⚠ {text}{Colors.ENDC}")
+
+
+def print_error(text: str):
+    """Print an error message."""
+    click.echo(f"{Colors.FAIL}✗ {text}{Colors.ENDC}")
+
+
+def run_command(
+    cmd: List[str], cwd: Optional[Path] = None, check: bool = True
+) -> subprocess.CompletedProcess:
+    """Run a command and return the result."""
+    cmd_str = " ".join(cmd)
+    cwd_str = str(cwd) if cwd else str(PROJECT_ROOT)
+
+    click.echo(f"{Colors.OKCYAN}Running: {cmd_str} (in {cwd_str}){Colors.ENDC}")
+
+    try:
+        result = subprocess.run(cmd, cwd=cwd, check=check, capture_output=False)
+        return result
+    except subprocess.CalledProcessError as e:
+        print_error(f"Command failed with exit code {e.returncode}: {cmd_str}")
+        if check:
+            sys.exit(e.returncode)
+        return e
+
+
+def check_prerequisites():
+    """Check if required tools are installed."""
+    print_header("Checking Prerequisites")
+
+    # Check Node.js
+    try:
+        result = subprocess.run(["node", "--version"], capture_output=True, text=True)
+        if result.returncode == 0:
+            print_success(f"Node.js found: {result.stdout.strip()}")
+        else:
+            print_error("Node.js not found. Please install Node.js 18+")
+            return False
+    except FileNotFoundError:
+        print_error("Node.js not found. Please install Node.js 18+")
+        return False
+
+    # Check npm
+    try:
+        result = subprocess.run(["npm", "--version"], capture_output=True, text=True)
+        if result.returncode == 0:
+            print_success(f"npm found: {result.stdout.strip()}")
+        else:
+            print_error("npm not found")
+            return False
+    except FileNotFoundError:
+        print_error("npm not found")
+        return False
+
+    # Check Rust
+    try:
+        result = subprocess.run(["rustc", "--version"], capture_output=True, text=True)
+        if result.returncode == 0:
+            print_success(f"Rust found: {result.stdout.strip()}")
+        else:
+            print_error("Rust not found. Please install Rust 1.70+")
+            return False
+    except FileNotFoundError:
+        print_error("Rust not found. Please install Rust 1.70+")
+        return False
+
+    # Check Cargo
+    try:
+        result = subprocess.run(["cargo", "--version"], capture_output=True, text=True)
+        if result.returncode == 0:
+            print_success(f"Cargo found: {result.stdout.strip()}")
+        else:
+            print_error("Cargo not found")
+            return False
+    except FileNotFoundError:
+        print_error("Cargo not found")
+        return False
+
+    return True
+
+
+def check_environment():
+    """Check if required environment variables are set."""
+    print_header("Checking Environment Variables")
+
+    missing_vars = []
+
+    # Check if config.env exists
+    if not CONFIG_FILE.exists():
+        print_warning(f"Config file not found: {CONFIG_FILE}")
+        print_warning("Please copy config.env.example to config.env and configure it")
+        return False
+
+    # Load environment from config.env
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    if not os.getenv(key.strip()):
+                        os.environ[key.strip()] = value.strip()
+    except Exception as e:
+        print_error(f"Failed to load config.env: {e}")
+        return False
+
+    # Check required variables
+    for var in REQUIRED_ENV_VARS:
+        value = os.getenv(var)
+        if not value or value in [
+            "your-password",
+            "your-project",
+            "your-anon-key-here",
+            "your-service-role-key-here",
+            "your-super-secret-jwt-key-here",
+        ]:
+            missing_vars.append(var)
+        else:
+            print_success(f"{var} is configured")
+
+    if missing_vars:
+        print_error("Missing or unconfigured environment variables:")
+        for var in missing_vars:
+            print_error(f"  - {var}")
+        print_error("Please configure these variables in config.env")
+        return False
+
+    return True
+
+
+@click.group()
+@click.option(
+    "--skip-checks", is_flag=True, help="Skip prerequisite and environment checks"
+)
+@click.pass_context
+def cli(ctx, skip_checks):
+    """Enterprise Management Suite (EMS) - Unified Development Tool"""
+    ctx.ensure_object(dict)
+    ctx.obj["skip_checks"] = skip_checks
+
+    if not skip_checks:
+        if not check_prerequisites():
+            sys.exit(1)
+
+        if not check_environment():
+            print_warning("Environment checks failed. Use --skip-checks to bypass.")
+            sys.exit(1)
+
+
+@cli.command()
+@click.option("--frontend-only", is_flag=True, help="Build only the frontend")
+@click.option("--backend-only", is_flag=True, help="Build only the backend")
+@click.option("--release", is_flag=True, help="Build backend in release mode")
+def build(frontend_only, backend_only, release):
+    """Build the client and/or server components."""
+    print_header("Building EMS Components")
+
+    if not backend_only:
+        print_header("Building Frontend")
+        if not CLIENT_DIR.exists():
+            print_error(f"Client directory not found: {CLIENT_DIR}")
+            sys.exit(1)
+
+        # Install dependencies if node_modules doesn't exist
+        if not (CLIENT_DIR / "node_modules").exists():
+            print_warning("node_modules not found. Installing dependencies...")
+            run_command(["npm", "ci"], cwd=CLIENT_DIR)
+
+        # Build frontend
+        run_command(["npm", "run", "build"], cwd=CLIENT_DIR)
+        print_success("Frontend build completed")
+
+    if not frontend_only:
+        print_header("Building Backend")
+        if not SERVER_DIR.exists():
+            print_error(f"Server directory not found: {SERVER_DIR}")
+            sys.exit(1)
+
+        # Build backend
+        build_cmd = ["cargo", "build"]
+        if release:
+            build_cmd.append("--release")
+
+        run_command(build_cmd, cwd=SERVER_DIR)
+        print_success("Backend build completed")
+
+    print_success("Build completed successfully!")
+
+
+@cli.command()
+@click.option("--frontend-only", is_flag=True, help="Test only the frontend")
+@click.option("--backend-only", is_flag=True, help="Test only the backend")
+def test(frontend_only, backend_only):
+    """Run tests for client and/or server components."""
+    print_header("Running EMS Tests")
+
+    if not backend_only:
+        print_header("Running Frontend Tests")
+        if CLIENT_DIR.exists():
+            # Check if test script exists in package.json
+            package_json = CLIENT_DIR / "package.json"
+            if package_json.exists():
+                import json
+
+                with open(package_json) as f:
+                    pkg = json.load(f)
+                if "test" in pkg.get("scripts", {}):
+                    run_command(
+                        ["npm", "test", "--", "--watchAll=false"], cwd=CLIENT_DIR
+                    )
+                    print_success("Frontend tests completed")
+                else:
+                    print_warning("No test script found in frontend package.json")
+            else:
+                print_warning("Frontend package.json not found")
+        else:
+            print_warning("Frontend directory not found")
+
+    if not frontend_only:
+        print_header("Running Backend Tests")
+        if SERVER_DIR.exists():
+            run_command(["cargo", "test"], cwd=SERVER_DIR)
+            print_success("Backend tests completed")
+        else:
+            print_warning("Backend directory not found")
+
+    print_success("All tests completed!")
+
+
+@cli.command()
+@click.option("--frontend-only", is_flag=True, help="Lint only the frontend")
+@click.option("--backend-only", is_flag=True, help="Lint only the backend")
+@click.option(
+    "--fix", is_flag=True, help="Automatically fix linting issues where possible"
+)
+def lint(frontend_only, backend_only, fix):
+    """Run linting for client and/or server components."""
+    print_header("Running EMS Linting")
+
+    if not backend_only:
+        print_header("Linting Frontend")
+        if CLIENT_DIR.exists():
+            lint_cmd = ["npm", "run", "lint"]
+            if fix:
+                lint_cmd.append("--", "--fix")
+
+            result = run_command(lint_cmd, cwd=CLIENT_DIR, check=False)
+            if result.returncode == 0:
+                print_success("Frontend linting completed")
+            else:
+                print_warning("Frontend linting found issues")
+        else:
+            print_warning("Frontend directory not found")
+
+    if not frontend_only:
+        print_header("Linting Backend")
+        if SERVER_DIR.exists():
+            # Check code with Cargo
+            run_command(["cargo", "check"], cwd=SERVER_DIR)
+
+            # Run Clippy for additional linting
+            clippy_cmd = ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"]
+            if fix:
+                clippy_cmd = [
+                    "cargo",
+                    "clippy",
+                    "--fix",
+                    "--allow-dirty",
+                    "--allow-staged",
+                ]
+
+            result = run_command(clippy_cmd, cwd=SERVER_DIR, check=False)
+            if result.returncode == 0:
+                print_success("Backend linting completed")
+            else:
+                print_warning("Backend linting found issues")
+        else:
+            print_warning("Backend directory not found")
+
+
+@cli.command()
+@click.option("--frontend-only", is_flag=True, help="Format only the frontend")
+@click.option("--backend-only", is_flag=True, help="Format only the backend")
+def format(frontend_only, backend_only):
+    """Format code for client and/or server components."""
+    print_header("Formatting EMS Code")
+
+    if not backend_only:
+        print_header("Formatting Frontend")
+        if CLIENT_DIR.exists():
+            # Check if format script exists
+            package_json = CLIENT_DIR / "package.json"
+            if package_json.exists():
+                import json
+
+                with open(package_json) as f:
+                    pkg = json.load(f)
+                if "format" in pkg.get("scripts", {}):
+                    run_command(["npm", "run", "format"], cwd=CLIENT_DIR)
+                    print_success("Frontend formatting completed")
+                else:
+                    print_warning("No format script found in frontend package.json")
+            else:
+                print_warning("Frontend package.json not found")
+        else:
+            print_warning("Frontend directory not found")
+
+    if not frontend_only:
+        print_header("Formatting Backend")
+        if SERVER_DIR.exists():
+            run_command(["cargo", "fmt"], cwd=SERVER_DIR)
+            print_success("Backend formatting completed")
+        else:
+            print_warning("Backend directory not found")
+
+
+@cli.command()
+@click.option("--frontend-only", is_flag=True, help="Clean only the frontend")
+@click.option("--backend-only", is_flag=True, help="Clean only the backend")
+@click.option("--deep", is_flag=True, help="Deep clean including dependencies")
+def clean(frontend_only, backend_only, deep):
+    """Clean build artifacts for client and/or server components."""
+    print_header("Cleaning EMS Build Artifacts")
+
+    if not backend_only:
+        print_header("Cleaning Frontend")
+        if CLIENT_DIR.exists():
+            # Remove dist directory
+            dist_dir = CLIENT_DIR / "dist"
+            if dist_dir.exists():
+                shutil.rmtree(dist_dir)
+                print_success("Removed frontend dist directory")
+
+            # Remove node_modules if deep clean
+            if deep:
+                node_modules = CLIENT_DIR / "node_modules"
+                if node_modules.exists():
+                    shutil.rmtree(node_modules)
+                    print_success("Removed node_modules directory")
+
+                package_lock = CLIENT_DIR / "package-lock.json"
+                if package_lock.exists():
+                    package_lock.unlink()
+                    print_success("Removed package-lock.json")
+        else:
+            print_warning("Frontend directory not found")
+
+    if not frontend_only:
+        print_header("Cleaning Backend")
+        if SERVER_DIR.exists():
+            # Clean cargo build artifacts
+            run_command(["cargo", "clean"], cwd=SERVER_DIR)
+            print_success("Backend cleaning completed")
+        else:
+            print_warning("Backend directory not found")
+
+
+@cli.command()
+@click.option(
+    "--frontend-only", is_flag=True, help="Start only the frontend development server"
+)
+@click.option(
+    "--backend-only", is_flag=True, help="Start only the backend development server"
+)
+@click.option("--production", is_flag=True, help="Start in production mode")
+def dev(frontend_only, backend_only, production):
+    """Start development servers for client and/or server."""
+    print_header("Starting EMS Development Environment")
+
+    if frontend_only and backend_only:
+        print_error("Cannot specify both --frontend-only and --backend-only")
+        sys.exit(1)
+
+    processes = []
+
+    try:
+        if not backend_only:
+            print_header("Starting Frontend Development Server")
+            if CLIENT_DIR.exists():
+                # Install dependencies if needed
+                if not (CLIENT_DIR / "node_modules").exists():
+                    print_warning("Installing frontend dependencies...")
+                    run_command(["npm", "ci"], cwd=CLIENT_DIR)
+
+                # Start frontend
+                cmd = ["npm", "run", "preview" if production else "start"]
+                proc = subprocess.Popen(cmd, cwd=CLIENT_DIR)
+                processes.append(("Frontend", proc))
+                print_success("Frontend development server started")
+            else:
+                print_error("Frontend directory not found")
+
+        if not frontend_only:
+            print_header("Starting Backend Development Server")
+            if SERVER_DIR.exists():
+                # Start backend
+                cmd = ["cargo", "run", "--bin", "ems-server-rs"]
+
+                proc = subprocess.Popen(cmd, cwd=SERVER_DIR)
+                processes.append(("Backend", proc))
+                print_success("Backend development server started")
+            else:
+                print_error("Backend directory not found")
+
+        if processes:
+            print_success("Development environment started successfully!")
+            print_warning("Press Ctrl+C to stop all servers")
+
+            # Wait for all processes
+            for name, proc in processes:
+                proc.wait()
+
+    except KeyboardInterrupt:
+        print_warning("Shutting down development servers...")
+        for name, proc in processes:
+            proc.terminate()
+            print_success(f"{name} server stopped")
+
+
+@cli.command()
+def setup():
+    """Setup the development environment."""
+    print_header("Setting Up EMS Development Environment")
+
+    # Check if config.env exists
+    if not CONFIG_FILE.exists():
+        if (PROJECT_ROOT / "config.env.example").exists():
+            print_warning("Copying config.env.example to config.env")
+            shutil.copy(PROJECT_ROOT / "config.env.example", CONFIG_FILE)
+            print_success(
+                "Config file created. Please edit config.env with your settings."
+            )
+        else:
+            print_error("config.env.example not found")
+            sys.exit(1)
+
+    # Install frontend dependencies
+    if CLIENT_DIR.exists():
+        print_header("Installing Frontend Dependencies")
+        run_command(["npm", "ci"], cwd=CLIENT_DIR)
+        print_success("Frontend dependencies installed")
+
+    # Build backend
+    if SERVER_DIR.exists():
+        print_header("Building Backend")
+        run_command(["cargo", "build"], cwd=SERVER_DIR)
+        print_success("Backend built successfully")
+
+    print_success("Development environment setup completed!")
+    print_warning("Please configure config.env before running the application")
+
+
+@cli.command()
+def status():
+    """Show the status of EMS components."""
+    print_header("EMS Component Status")
+
+    # Check frontend
+    if CLIENT_DIR.exists():
+        print_success("✓ Frontend directory found")
+        if (CLIENT_DIR / "node_modules").exists():
+            print_success("✓ Frontend dependencies installed")
+        else:
+            print_warning("⚠ Frontend dependencies not installed")
+
+        if (CLIENT_DIR / "dist").exists():
+            print_success("✓ Frontend build artifacts found")
+        else:
+            print_warning("⚠ Frontend not built")
+    else:
+        print_error("✗ Frontend directory not found")
+
+    # Check backend
+    if SERVER_DIR.exists():
+        print_success("✓ Backend directory found")
+        if (SERVER_DIR / "target").exists():
+            print_success("✓ Backend build artifacts found")
+        else:
+            print_warning("⚠ Backend not built")
+    else:
+        print_error("✗ Backend directory not found")
+
+    # Check config
+    if CONFIG_FILE.exists():
+        print_success("✓ Configuration file found")
+    else:
+        print_warning("⚠ Configuration file not found")
+
+
+if __name__ == "__main__":
+    cli()

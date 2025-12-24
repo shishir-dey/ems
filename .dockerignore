@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+*.md
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend dependencies and build artifacts
+src/client/node_modules
+src/client/dist
+src/client/build
+src/client/.vite
+src/client/coverage
+
+# Backend build artifacts
+src/server/target
+src/server/Cargo.lock
+
+# Testing
+coverage
+.nyc_output
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Keep nginx configuration
+!nginx/ 
