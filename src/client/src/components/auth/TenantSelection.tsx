@@ -155,12 +155,14 @@ const TenantSelection: React.FC = () => {
   // Loading state
   if (isLoading || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50">
+        <Card className="w-full max-w-md shadow-soft-lg">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading tenants...</p>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-soft mx-auto mb-4 animate-pulse">
+                <Building2 className="w-5 h-5 text-white" />
+              </div>
+              <p className="text-muted-foreground">Loading organizations...</p>
             </div>
           </CardContent>
         </Card>
@@ -168,28 +170,45 @@ const TenantSelection: React.FC = () => {
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state - show create option alongside error (unless user is creating)
+  if (error && !showCreateForm) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center text-red-600">Error</CardTitle>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 py-12 px-4">
+        <Card className="w-full max-w-md shadow-soft-lg">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-soft mb-4">
+              <Building2 className="w-6 h-6 text-white" />
+            </div>
+            <CardTitle className="text-xl font-semibold tracking-tight">
+              Get Started
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center space-y-4">
-              <p className="text-muted-foreground">{error}</p>
-              <div className="space-y-2">
+              <p className="text-muted-foreground text-sm">
+                {error.includes("fetch") || error.includes("network")
+                  ? "Unable to load organizations. You can create a new one to get started."
+                  : "No existing organizations found. Create your first organization to get started."}
+              </p>
+              <div className="space-y-3">
                 <Button
-                  onClick={() => window.location.reload()}
+                  onClick={() => setShowCreateForm(true)}
                   className="w-full"
                 >
-                  Retry
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Organization
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={handleLogout}
+                  onClick={() => window.location.reload()}
                   className="w-full"
+                >
+                  Retry Loading
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleLogout}
+                  className="w-full text-muted-foreground"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
@@ -203,8 +222,8 @@ const TenantSelection: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-2xl shadow-soft-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -333,11 +352,10 @@ const TenantSelection: React.FC = () => {
                     {tenants.map((tenant) => (
                       <div
                         key={tenant.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${
-                          selectedTenant?.id === tenant.id
-                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                            : "border-gray-200"
-                        }`}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${selectedTenant?.id === tenant.id
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "border-gray-200"
+                          }`}
                         onClick={() => handleTenantSelect(tenant)}
                       >
                         <div className="flex items-center justify-between">

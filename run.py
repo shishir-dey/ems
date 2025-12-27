@@ -502,6 +502,94 @@ def setup():
 
 
 @cli.command()
+@click.option("--dry-run", is_flag=True, help="Show which migrations would run without executing")
+def migrate(dry_run):
+    """Run database migrations against Supabase."""
+    print_header("Running Database Migrations")
+    
+    # Load config.env if not already loaded
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        if not os.getenv(key.strip()):
+                            os.environ[key.strip()] = value.strip()
+        except Exception as e:
+            print_error(f"Failed to load config.env: {e}")
+            sys.exit(1)
+    
+    migrations_dir = SERVER_DIR / "migrations"
+    if not migrations_dir.exists():
+        print_error(f"Migrations directory not found: {migrations_dir}")
+        sys.exit(1)
+    
+    # Get DATABASE_URL from environment
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        print_error("DATABASE_URL not set. Please configure config.env")
+        sys.exit(1)
+    
+    # Get list of migration files in order
+    migration_files = sorted([
+        f for f in migrations_dir.iterdir() 
+        if f.suffix == ".sql" and not f.name.startswith(".")
+    ], key=lambda x: x.name)
+    
+    if not migration_files:
+        print_warning("No migration files found")
+        return
+    
+    print_success(f"Found {len(migration_files)} migration file(s):")
+    for mf in migration_files:
+        click.echo(f"  - {mf.name}")
+    
+    if dry_run:
+        print_warning("Dry run mode - no migrations executed")
+        return
+    
+    # Try to use psql to execute migrations
+    print_header("Executing Migrations")
+    
+    for migration_file in migration_files:
+        print_header(f"Running: {migration_file.name}")
+        try:
+            # Use psql to run the migration
+            result = subprocess.run(
+                ["psql", database_url, "-f", str(migration_file)],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                print_success(f"Migration {migration_file.name} completed")
+                if result.stdout:
+                    # Only show non-empty output
+                    for line in result.stdout.strip().split('\n')[:5]:
+                        if line.strip():
+                            click.echo(f"  {line}")
+            else:
+                # Check if it's just a "already exists" error
+                if "already exists" in result.stderr:
+                    print_warning(f"Migration {migration_file.name} - objects already exist (skipped)")
+                else:
+                    print_error(f"Migration {migration_file.name} failed:")
+                    click.echo(result.stderr)
+                    # Continue with other migrations instead of stopping
+                    
+        except FileNotFoundError:
+            print_error("psql not found. Please install PostgreSQL client tools.")
+            print_warning("Alternatively, run the SQL files manually in Supabase SQL Editor")
+            sys.exit(1)
+        except Exception as e:
+            print_error(f"Error running migration {migration_file.name}: {e}")
+    
+    print_success("Database migrations completed!")
+
+
+@cli.command()
 def status():
     """Show the status of EMS components."""
     print_header("EMS Component Status")

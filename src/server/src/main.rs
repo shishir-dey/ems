@@ -39,42 +39,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             )),
         )
         .nest(
-            "/api/person",
+            "/api/v1/person",
             person::routes().layer(axum_middleware::from_fn_with_state(
                 app_state.clone(),
                 auth_middleware,
             )),
         )
         .nest(
-            "/api/job",
+            "/api/v1/job",
             job::routes().layer(axum_middleware::from_fn_with_state(
                 app_state.clone(),
                 auth_middleware,
             )),
         )
         .nest(
-            "/api/order",
+            "/api/v1/order",
             order::routes().layer(axum_middleware::from_fn_with_state(
                 app_state.clone(),
                 auth_middleware,
             )),
         )
         .nest(
-            "/api/item",
+            "/api/v1/item",
             item::routes().layer(axum_middleware::from_fn_with_state(
                 app_state.clone(),
                 auth_middleware,
             )),
         )
         .nest(
-            "/api/asset",
+            "/api/v1/asset",
             asset::routes().layer(axum_middleware::from_fn_with_state(
                 app_state.clone(),
                 auth_middleware,
             )),
         )
         .nest(
-            "/api/machine",
+            "/api/v1/machine",
             machine::routes().layer(axum_middleware::from_fn_with_state(
                 app_state.clone(),
                 auth_middleware,

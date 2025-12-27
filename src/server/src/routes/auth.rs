@@ -25,6 +25,7 @@ pub fn routes() -> Router<AppState> {
         .route("/login", post(login))
         .route("/register", post(register))
         .route("/person-register", post(person_only_register))
+        .route("/person-login", post(person_only_login))
         .route("/join-tenant", post(join_tenant))
         .route("/create-tenant", post(create_tenant))
         .route("/refresh", post(refresh_token))
@@ -109,6 +110,32 @@ async fn person_only_register(
             match e.to_string().as_str() {
                 s if s.contains("Email already registered") => Err(StatusCode::CONFLICT),
                 s if s.contains("Registration failed") => Err(StatusCode::BAD_REQUEST),
+                _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        }
+    }
+}
+
+async fn person_only_login(
+    State(state): State<AppState>,
+    Json(payload): Json<LoginRequest>,
+) -> Result<Json<PersonOnlyAuthResponse>, StatusCode> {
+    // Validate the request
+    if let Err(_) = payload.validate() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Create auth service
+    let auth_service = AuthService::new(state.database, state.supabase);
+
+    // Login person without tenant requirement
+    match auth_service.person_only_login(payload).await {
+        Ok(auth_response) => Ok(Json(auth_response)),
+        Err(e) => {
+            tracing::error!("Person-only login failed: {}", e);
+            match e.to_string().as_str() {
+                s if s.contains("Authentication failed") => Err(StatusCode::UNAUTHORIZED),
+                s if s.contains("User not found") => Err(StatusCode::NOT_FOUND),
                 _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
             }
         }

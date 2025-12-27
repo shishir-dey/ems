@@ -181,11 +181,10 @@ const Dashboard: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
-                      activeTab === tab.id
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id
                         ? "border-b-2 border-primary text-primary"
                         : "text-muted-foreground hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -214,11 +213,10 @@ const Dashboard: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
-                      activeTab === tab.id
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id
                         ? "border-b-2 border-primary text-primary"
                         : "text-muted-foreground hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -252,11 +250,10 @@ const Dashboard: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
-                      activeTab === tab.id
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id
                         ? "border-b-2 border-primary text-primary"
                         : "text-muted-foreground hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -291,11 +288,10 @@ const Dashboard: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === tab.id
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id
                       ? "border-b-2 border-primary text-primary"
                       : "text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -329,29 +325,37 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full bg-background">
-      <div className="w-64 h-full">
+      <div className="w-64 h-full flex-shrink-0">
         <Sidebar
           items={sidebarItems}
           activeItem={activeSection}
           onItemClick={handleSectionChange}
         />
       </div>
-      <div className="flex flex-col flex-1">
-        <header className="h-16 border-b flex items-center justify-between px-6 sticky top-0 z-10 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60">
-          <h1 className="text-xl font-semibold">
-            Enterprise Management Suite (Core)
+      <div className="flex flex-col flex-1 min-w-0">
+        <header className="h-16 border-b border-border/50 flex items-center justify-between px-6 sticky top-0 z-10 bg-background/80 backdrop-blur-xl shadow-sm">
+          <h1 className="text-lg font-semibold tracking-tight text-foreground/90">
+            Enterprise Management Suite
           </h1>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-muted-foreground">
-              {currentTenant?.name} ({user?.first_name} {user?.last_name})
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <span className="text-sm font-medium text-foreground/80">
+                {currentTenant?.name}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                · {user?.first_name} {user?.last_name}
+              </span>
             </div>
             <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
+              <LogOut className="w-4 h-4" />
               Sign Out
             </Button>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">{renderContent()}</main>
+        <main className="flex-1 p-6 overflow-auto bg-muted/30">
+          <div className="animate-fade-in">{renderContent()}</div>
+        </main>
       </div>
     </div>
   );
@@ -373,8 +377,13 @@ const AppContent: React.FC = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-soft animate-pulse">
+            <span className="text-white font-bold text-lg">E</span>
+          </div>
+          <div className="text-sm text-muted-foreground">Loading...</div>
+        </div>
       </div>
     );
   }

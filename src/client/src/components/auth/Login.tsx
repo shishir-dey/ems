@@ -73,10 +73,13 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl font-bold">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md shadow-soft-lg">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-soft mb-4">
+            <span className="text-white font-bold text-xl">E</span>
+          </div>
+          <CardTitle className="text-2xl font-semibold tracking-tight">
             Sign In
           </CardTitle>
           <p className="text-center text-sm text-muted-foreground">

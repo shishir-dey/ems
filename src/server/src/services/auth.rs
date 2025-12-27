@@ -587,6 +587,67 @@ impl AuthService {
         })
     }
 
+    /// Login without tenant - for users who haven't joined a tenant yet
+    pub async fn person_only_login(
+        &self,
+        request: LoginRequest,
+    ) -> Result<PersonOnlyAuthResponse> {
+        // 1. Authenticate with Supabase
+        let _supabase_session = self
+            .supabase_service
+            .authenticate_user(&request.email, &request.password)
+            .await
+            .map_err(|e| {
+                tracing::error!(
+                    "Supabase authentication failed for {}: {}",
+                    request.email,
+                    e
+                );
+                anyhow::anyhow!("Authentication failed: Invalid email or password")
+            })?;
+
+        let mut conn = self.database.get_connection().await?;
+
+        // 2. Find user by email in our database
+        let person_result = person::table
+            .filter(person::email.eq(&request.email))
+            .first::<Person>(&mut conn)
+            .await
+            .optional()?;
+
+        let person = person_result
+            .ok_or_else(|| anyhow::anyhow!("User not found in system. Please register first."))?;
+
+        // 3. Update last_login timestamp
+        diesel::update(person::table.filter(person::id.eq(person.id)))
+            .set(person::last_login.eq(Some(Utc::now())))
+            .execute(&mut conn)
+            .await?;
+
+        // 4. Generate temporary JWT tokens without tenant
+        let access_token = AuthUtils::generate_temporary_access_token(person.id)?;
+        let refresh_token = AuthUtils::generate_temporary_refresh_token(person.id)?;
+
+        // 5. Extract first/last name from full name
+        let name_parts: Vec<&str> = person.name.split_whitespace().collect();
+        let first_name = name_parts.first().map(|s| s.to_string()).unwrap_or_default();
+        let last_name = name_parts.get(1..).map(|s| s.join(" ")).unwrap_or_default();
+
+        // 6. Create response
+        let auth_person = AuthPersonWithoutTenant {
+            id: person.id,
+            email: person.email,
+            first_name,
+            last_name,
+        };
+
+        Ok(PersonOnlyAuthResponse {
+            access_token,
+            refresh_token,
+            person: auth_person,
+        })
+    }
+
     /// Associate person with an existing tenant
     pub async fn join_existing_tenant(
         &self,
