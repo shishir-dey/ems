@@ -352,10 +352,11 @@ const TenantSelection: React.FC = () => {
                     {tenants.map((tenant) => (
                       <div
                         key={tenant.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${selectedTenant?.id === tenant.id
-                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                          : "border-gray-200"
-                          }`}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${
+                          selectedTenant?.id === tenant.id
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                            : "border-gray-200"
+                        }`}
                         onClick={() => handleTenantSelect(tenant)}
                       >
                         <div className="flex items-center justify-between">

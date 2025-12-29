@@ -25,6 +25,7 @@ struct ListQuery {
     context: Option<ItemContext>,
     category: Option<String>,
     lifecycle: Option<ItemLifecycle>,
+    #[allow(dead_code)]
     status: Option<ItemStatus>,
     limit: Option<u32>,
     offset: Option<u32>,

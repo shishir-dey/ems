@@ -588,10 +588,7 @@ impl AuthService {
     }
 
     /// Login without tenant - for users who haven't joined a tenant yet
-    pub async fn person_only_login(
-        &self,
-        request: LoginRequest,
-    ) -> Result<PersonOnlyAuthResponse> {
+    pub async fn person_only_login(&self, request: LoginRequest) -> Result<PersonOnlyAuthResponse> {
         // 1. Authenticate with Supabase
         let _supabase_session = self
             .supabase_service
@@ -630,8 +627,12 @@ impl AuthService {
 
         // 5. Extract first/last name from full name
         let name_parts: Vec<&str> = person.name.split_whitespace().collect();
-        let first_name = name_parts.first().map(|s| s.to_string()).unwrap_or_default();
-        let last_name = name_parts.get(1..).map(|s| s.join(" ")).unwrap_or_default();
+        let first_name = name_parts.get(0).map(|s| s.to_string()).unwrap_or_default();
+        let last_name = if name_parts.len() > 1 {
+            name_parts[1..].join(" ")
+        } else {
+            String::new()
+        };
 
         // 6. Create response
         let auth_person = AuthPersonWithoutTenant {
