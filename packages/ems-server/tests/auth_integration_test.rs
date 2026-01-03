@@ -3,7 +3,7 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use ems_server_rs::AppState;
+use ems_server::AppState;
 use serde_json::json;
 use std::env;
 use tower::ServiceExt;
@@ -47,7 +47,7 @@ async fn create_test_app() -> Router {
 
     Router::new().nest(
         "/api/v1/auth",
-        ems_server_rs::routes::auth::routes().with_state(app_state),
+        ems_server::routes::auth::routes().with_state(app_state),
     )
 }
 

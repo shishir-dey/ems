@@ -11,7 +11,7 @@ mod tests {
     use tower::ServiceExt; // for `oneshot` and `ready`
     use uuid::Uuid;
 
-    use ems_server_rs::{routes::order::routes, services::DatabaseService, AppState};
+    use ems_server::{routes::order::routes, services::DatabaseService, AppState};
 
     async fn app() -> Router {
         // Load environment variables for tests

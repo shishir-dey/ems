@@ -1,5 +1,5 @@
 [package]
-name = "ems-server-rs"
+name = "ems-server"
 version = "0.1.0"
 edition = "2021"
 
@@ -64,9 +64,3 @@ lazy_static = "1.5"
 [dev-dependencies]
 # Testing dependencies
 tower = { version = "0.4", features = ["util"] }
-
-# Migration binary
-[[bin]]
-name = "migrate"
-path = "src/bin/migrate.rs"
-

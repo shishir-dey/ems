@@ -16,8 +16,9 @@ import click
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent
-CLIENT_DIR = PROJECT_ROOT / "src" / "client"
-SERVER_DIR = PROJECT_ROOT / "src" / "server"
+CLIENT_DIR = PROJECT_ROOT / "packages" / "ems-client"
+SERVER_DIR = PROJECT_ROOT / "packages" / "ems-server"
+MIGRATIONS_DIR = PROJECT_ROOT / "packages" / "ems-db"
 CONFIG_FILE = PROJECT_ROOT / "config.env"
 
 # Required environment variables for development
@@ -445,7 +446,7 @@ def dev(frontend_only, backend_only, production):
             print_header("Starting Backend Development Server")
             if SERVER_DIR.exists():
                 # Start backend
-                cmd = ["cargo", "run", "--bin", "ems-server-rs"]
+                cmd = ["cargo", "run", "--bin", "ems-server"]
 
                 proc = subprocess.Popen(cmd, cwd=SERVER_DIR)
                 processes.append(("Backend", proc))
@@ -497,6 +498,33 @@ def setup():
         run_command(["cargo", "build"], cwd=SERVER_DIR)
         print_success("Backend built successfully")
 
+    # Run database migrations
+    print_header("Running Database Migrations")
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        print_error("DATABASE_URL not set")
+        sys.exit(1)
+
+    migration_files = sorted([f for f in MIGRATIONS_DIR.iterdir() if f.suffix == ".sql" and not f.name.startswith(".")], key=lambda x: x.name)
+
+    if not migration_files:
+        print_warning("No migration files found")
+    else:
+        for migration_file in migration_files:
+            print_header(f"Running: {migration_file.name}")
+            result = subprocess.run(["psql", database_url, "-f", str(migration_file)], capture_output=True, text=True)
+            if result.returncode == 0:
+                print_success(f"Migration {migration_file.name} completed")
+            else:
+                if "already exists" in result.stderr:
+                    print_warning(f"Migration {migration_file.name} - objects already exist (skipped)")
+                else:
+                    print_error(f"Migration {migration_file.name} failed:")
+                    click.echo(result.stderr)
+                    # Continue with other migrations
+
+    print_success("Database migrations completed")
+
     print_success("Development environment setup completed!")
     print_warning("Please configure config.env before running the application")
 
@@ -521,9 +549,8 @@ def migrate(dry_run):
             print_error(f"Failed to load config.env: {e}")
             sys.exit(1)
     
-    migrations_dir = SERVER_DIR / "migrations"
-    if not migrations_dir.exists():
-        print_error(f"Migrations directory not found: {migrations_dir}")
+    if not MIGRATIONS_DIR.exists():
+        print_error(f"Migrations directory not found: {MIGRATIONS_DIR}")
         sys.exit(1)
     
     # Get DATABASE_URL from environment
@@ -534,7 +561,7 @@ def migrate(dry_run):
     
     # Get list of migration files in order
     migration_files = sorted([
-        f for f in migrations_dir.iterdir() 
+        f for f in MIGRATIONS_DIR.iterdir() 
         if f.suffix == ".sql" and not f.name.startswith(".")
     ], key=lambda x: x.name)
     

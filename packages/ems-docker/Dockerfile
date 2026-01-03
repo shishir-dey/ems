@@ -6,11 +6,11 @@ FROM node:18-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy package files for dependency caching
-COPY src/client/package*.json ./
+COPY packages/ems-client/package*.json ./
 RUN npm ci
 
 # Copy frontend source and build
-COPY src/client/ ./
+COPY packages/ems-client/ ./
 RUN npm run build
 
 # Stage 2: Build Rust Backend
@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app/backend
 
 # Copy Cargo.toml first
-COPY src/server/Cargo.toml ./
+COPY packages/ems-server/Cargo.toml ./
 
 # Create a dummy main.rs for dependency resolution
 RUN mkdir src && echo "fn main() {}" > src/main.rs
@@ -35,7 +35,7 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo fetch && cargo build --release && rm -rf src
 
 # Copy backend source and build
-COPY src/server/ ./
+COPY packages/ems-server/ ./
 RUN touch src/main.rs && cargo build --release
 
 # Stage 3: Runtime Image
@@ -55,7 +55,7 @@ RUN useradd -r -s /bin/false ems
 WORKDIR /app
 
 # Copy built backend binary
-COPY --from=backend-builder /app/backend/target/release/ems-server-rs ./ems-server
+COPY --from=backend-builder /app/backend/target/release/ems-server ./ems-server
 
 # Copy built frontend static files
 COPY --from=frontend-builder /app/frontend/dist ./static

@@ -5,7 +5,7 @@ use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, services::ServeDir, trace::TraceLayer};
 use tracing_subscriber;
 
-use ems_server_rs::{
+use ems_server::{
     middleware::{auth::auth_middleware, tenant::tenant_middleware},
     routes::{asset, auth, item, job, machine, order, person, tenants},
     AppState,
