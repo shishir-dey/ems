@@ -27,7 +27,7 @@ jobs:
       with:
         node-version: 18.x
         cache: 'npm'
-        cache-dependency-path: 'src/client/package-lock.json'
+        cache-dependency-path: 'packages/ems-client/package-lock.json'
     
     # Set up Rust for backend testing
     - name: Set up Rust
@@ -46,8 +46,8 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          src/server/target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('src/server/Cargo.lock') }}
+          packages/ems-server/target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('packages/ems-server/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-
     
@@ -60,18 +60,18 @@ jobs:
     # Install dependencies
     - name: Install frontend dependencies
       run: |
-        cd src/client
+        cd packages/ems-client
         npm ci
     
     - name: Install backend dependencies
       run: |
-        cd src/server
+        cd packages/ems-server
         cargo fetch
     
     # Frontend tasks - lint and build if needed
     - name: Lint frontend code
       run: |
-        cd src/client
+        cd packages/ems-client
         if grep -q "\"lint\":" package.json; then
           npm run lint
         else
@@ -83,7 +83,7 @@ jobs:
       id: frontend-build
       run: |
         echo "Building frontend..."
-        cd src/client
+        cd packages/ems-client
         npm run build
         echo "Frontend build completed successfully"
         echo "build_required=true" >> $GITHUB_OUTPUT
@@ -92,23 +92,23 @@ jobs:
     # Backend tasks - format, lint and test
     - name: Format backend code
       run: |
-        cd src/server
+        cd packages/ems-server
         cargo fmt -- --check
       continue-on-error: true
     
     - name: Lint backend code
       run: |
-        cd src/server
+        cd packages/ems-server
         cargo check
     
     - name: Build backend
       run: |
-        cd src/server
+        cd packages/ems-server
         cargo build --verbose
     
     - name: Test backend
       run: |
-        cd src/server
+        cd packages/ems-server
         cargo test --verbose
     
     # Summary

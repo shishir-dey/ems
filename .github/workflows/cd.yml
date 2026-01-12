@@ -63,14 +63,9 @@ jobs:
     
     - name: Deploy configuration files
       run: |
-        rsync -avz --delete \
-              --include='docker-compose.yml' \
-              --include='config.env.example' \
-              --include='.env.production' \
-              --include='nginx/' \
-              --include='nginx/**' \
-              --exclude='*' \
-              ./ root@${{ secrets.DO_SERVER_IP }}:/var/www/ems/
+        rsync -avz packages/ems-docker/docker-compose.yml root@${{ secrets.DO_SERVER_IP }}:/var/www/ems/
+        rsync -avz packages/ems-nginx/ root@${{ secrets.DO_SERVER_IP }}:/var/www/ems/nginx/
+        rsync -avz config.env.example root@${{ secrets.DO_SERVER_IP }}:/var/www/ems/
     
     - name: Deploy to server
       env:

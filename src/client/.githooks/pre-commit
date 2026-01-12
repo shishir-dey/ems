@@ -1,8 +1,0 @@
-#!/bin/sh
-
-# Run linting and formatting
-npm run lint
-npm run format
-
-# Continue with commit
-exit 0
